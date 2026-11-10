@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Neon Ledger</title>
+    <style>
+      :root {
+        --cyan: #35e0ff;
+        --pink: #ff3d9a;
+        --amber: #ffb020;
+        --ink: rgba(6, 9, 18, 0.72);
+        --font: 'Avenir Next Condensed', 'Arial Narrow', 'Segoe UI', sans-serif;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #05070d; color: #e8ecff; font-family: var(--font); }
+      #c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; }
+      #hud { position: fixed; inset: 0; pointer-events: none; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
+      .panel { position: absolute; background: var(--ink); border: 1px solid rgba(120, 160, 255, 0.18); border-radius: 6px; padding: 10px 14px; backdrop-filter: blur(4px); }
+      #money { top: 16px; left: 16px; }
+      #cash { font-size: 34px; color: #7dff9a; text-shadow: 0 0 14px rgba(93, 255, 122, 0.6); font-variant-numeric: tabular-nums; line-height: 1; }
+      #goal { font-size: 11px; opacity: 0.6; margin-top: 4px; }
+      #heatbox { top: 16px; right: 16px; text-align: right; }
+      #heat { display: flex; gap: 7px; justify-content: flex-end; }
+      #heat i { width: 18px; height: 18px; transform: rotate(45deg); border: 2px solid rgba(255, 255, 255, 0.25); display: block; margin: 4px 2px; }
+      #heat i.on { background: #ff2a3a; border-color: #ff8a94; box-shadow: 0 0 12px #ff2a3a; }
+      #heat.hot i.on { animation: throb 0.5s infinite alternate; }
+      @keyframes throb { to { background: #3a6aff; border-color: #9ab4ff; box-shadow: 0 0 12px #3a6aff; } }
+      #heatname { font-size: 12px; color: #ff8a94; min-height: 15px; margin-top: 4px; }
+      #vitals { left: 16px; bottom: 16px; width: 230px; }
+      .bar { height: 9px; background: rgba(255, 255, 255, 0.1); border-radius: 2px; overflow: hidden; margin-bottom: 5px; }
+      .bar > div { height: 100%; transition: width 0.15s; }
+      #hp { background: linear-gradient(90deg, #ff3d6a, #ff8a5a); }
+      #armor { background: linear-gradient(90deg, #3a6aff, #35e0ff); }
+      #weapon { font-size: 19px; color: var(--cyan); margin-top: 8px; white-space: pre; }
+      #reps { left: 16px; top: 96px; width: 230px; font-size: 11px; }
+      .rep { margin: 5px 0; }
+      .rep .row { display: flex; justify-content: space-between; }
+      .rep .track { position: relative; height: 6px; background: rgba(255, 255, 255, 0.1); margin-top: 3px; border-radius: 2px; }
+      .rep .track::after { content: ''; position: absolute; left: 50%; top: -2px; width: 1px; height: 10px; background: rgba(255, 255, 255, 0.5); }
+      .rep .track div { position: absolute; top: 0; height: 100%; border-radius: 2px; }
+      #top { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); text-align: center; }
+      #objective { font-size: 20px; color: #ffd21f; text-shadow: 0 2px 0 #000, 0 0 14px rgba(255, 210, 31, 0.5); }
+      #timer { font-size: 30px; font-variant-numeric: tabular-nums; text-shadow: 0 2px 0 #000; }
+      #timer.low { color: #ff3d6a; }
+      #district { position: absolute; bottom: 230px; right: 20px; font-size: 22px; transition: opacity 0.8s; text-shadow: 0 2px 0 #000; }
+      #prompt { position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%); font-size: 17px; background: var(--ink); padding: 8px 16px; border-radius: 5px; border: 1px solid rgba(53, 224, 255, 0.4); transition: opacity 0.15s; white-space: nowrap; }
+      #banner { position: absolute; top: 30%; left: 0; right: 0; text-align: center; opacity: 0; transition: opacity 0.6s; }
+      #banner.show { opacity: 1; transition: opacity 0.1s; }
+      #banner h1 { font-size: 76px; margin: 0; letter-spacing: 0.14em; font-style: italic; -webkit-text-stroke: 1px rgba(0, 0, 0, 0.6); }
+      #banner p { font-size: 20px; margin: 4px 0 0; text-shadow: 0 2px 0 #000; text-transform: none; letter-spacing: 0.03em; }
+      #mapbox { right: 16px; bottom: 16px; padding: 5px; }
+      #minimap { display: block; width: 190px; height: 190px; border-radius: 3px; }
+      #arrow { position: absolute; left: 50%; top: 50%; margin: -12px 0 0 -12px; width: 24px; height: 24px; transition: opacity 0.3s; }
+      #arrow::before { content: ''; position: absolute; inset: 0; background: #ffd21f; clip-path: polygon(100% 50%, 0 0, 25% 50%, 0 100%); filter: drop-shadow(0 0 6px #ffd21f); }
+      .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; background: radial-gradient(ellipse at center, rgba(5, 7, 13, 0.55), rgba(5, 7, 13, 0.92)); text-align: center; }
+      .overlay.show { display: flex; }
+      #title h1 { font-size: clamp(60px, 11vw, 150px); margin: 0; font-style: italic; letter-spacing: 0.06em; line-height: 0.9; color: #fff; text-shadow: 0 0 18px var(--cyan), 0 0 60px var(--cyan), 4px 4px 0 var(--pink); }
+      #title h2 { font-size: 18px; letter-spacing: 0.5em; color: var(--amber); margin: 18px 0 34px; text-transform: uppercase; }
+      button { font: 700 20px var(--font); letter-spacing: 0.2em; text-transform: uppercase; color: #05070d; background: var(--cyan); border: 0; padding: 13px 34px; margin: 6px; border-radius: 4px; cursor: pointer; box-shadow: 0 0 24px rgba(53, 224, 255, 0.5); }
+      button:hover { background: #fff; }
+      button.alt { background: transparent; color: var(--cyan); border: 2px solid var(--cyan); box-shadow: none; }
+      .keys { margin-top: 34px; display: grid; grid-template-columns: auto auto; gap: 5px 18px; font-size: 14px; text-align: left; opacity: 0.85; letter-spacing: 0.05em; }
+      .keys b { color: var(--cyan); text-align: right; }
+      #pause h1 { font-size: 70px; letter-spacing: 0.3em; margin: 0; }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <div id="hud">
+      <div id="money" class="panel"><div id="cash">$0000000</div><div id="goal"></div></div>
+      <div id="reps" class="panel">
+        <div class="rep"><div class="row"><span id="repn0"></span><span id="repv0"></span></div><div class="track"><div id="rep0"></div></div></div>
+        <div class="rep"><div class="row"><span id="repn1"></span><span id="repv1"></span></div><div class="track"><div id="rep1"></div></div></div>
+        <div class="rep"><div class="row"><span id="repn2"></span><span id="repv2"></span></div><div class="track"><div id="rep2"></div></div></div>
+      </div>
+      <div id="heatbox" class="panel"><div id="heat"><i></i><i></i><i></i><i></i><i></i></div><div id="heatname"></div></div>
+      <div id="top"><div id="objective"></div><div id="timer"></div></div>
+      <div id="banner"></div>
+      <div id="arrow"></div>
+      <div id="district"></div>
+      <div id="prompt"></div>
+      <div id="vitals" class="panel">
+        <div class="bar"><div id="hp"></div></div>
+        <div class="bar"><div id="armor"></div></div>
+        <div id="weapon"></div>
+      </div>
+      <div id="mapbox" class="panel"><canvas id="minimap" width="190" height="190"></canvas></div>
+    </div>
+    <div id="title" class="overlay show">
+      <h1>NEON<br />LEDGER</h1>
+      <h2>Halcyon Reach · three crews · one set of books</h2>
+      <div><button id="continue">Continue</button><button id="new" class="alt">New game</button></div>
+      <div class="keys">
+        <b>W A S D</b><span>Move / drive</span>
+        <b>Mouse</b><span>Aim and fire (Ctrl also fires)</span>
+        <b>Space</b><span>Handbrake · fire on foot</span>
+        <b>E</b><span>Enter / leave vehicle</span>
+        <b>F</b><span>Take a job at a JOBS terminal</span>
+        <b>Q / 1–7</b><span>Switch weapon</span>
+        <b>P / Esc</b><span>Pause</span>
+        <b>M</b><span>Mute</span>
+      </div>
+    </div>
+    <div id="pause" class="overlay"><h1>PAUSED</h1><p>P or Esc to resume</p></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
